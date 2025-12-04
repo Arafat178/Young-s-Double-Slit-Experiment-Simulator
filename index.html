@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Optics: Wave-Particle Duality Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600&display=swap');
+
+        /* Base Theme */
+        :root {
+            --bg-dark: #0f172a;
+            --panel-bg: #1e293b;
+            --border-col: #334155;
+            --accent: #38bdf8;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: #f1f5f9;
+            overflow-x: hidden;
+        }
+        
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Modern Range Sliders */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+            margin: 10px 0;
+        }
+        input[type=range]::-webkit-slider-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 3px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            cursor: pointer;
+            margin-top: -6px; /* center thumb */
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #fff;
+        }
+
+        /* Canvas Styles */
+        canvas {
+            display: block;
+            width: 100%;
+        }
+        
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 12px;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark); 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; 
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            transition: all 0.2s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+        }
+        .btn-secondary {
+            background: #334155;
+            transition: all 0.2s ease;
+        }
+        .btn-secondary:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col p-4 md:p-6 max-w-[1600px] mx-auto">
+
+    <!-- Header -->
+    <header class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-xl">
+                λ
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Quantum Optics Lab</h1>
+                <p class="text-xs text-slate-400 font-medium tracking-wide uppercase">Young's Double Slit Experiment Simulator</p>
+            </div>
+        </div>
+        
+        <div class="flex gap-3">
+            <button onclick="sim.resetPhotons()" class="btn-secondary px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                Clear Screen
+            </button>
+            <button onclick="sim.exportReport()" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium text-white shadow-lg flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Export Graph
+            </button>
+        </div>
+    </header>
+
+    <main class="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+        
+        <!-- LEFT COLUMN: CONTROLS -->
+        <aside class="lg:col-span-3 space-y-4">
+            <div class="glass-panel p-5 space-y-6 h-full">
+                <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700 pb-2">Optical Parameters</h2>
+
+                <!-- Wavelength -->
+                <div class="control-group">
+                    <div class="flex justify-between mb-1">
+                        <label class="text-sm font-medium text-slate-300">Wavelength (λ)</label>
+                        <span id="lbl_lambda" class="mono text-xs text-cyan-400 bg-cyan-900/30 px-2 py-0.5 rounded">500 nm</span>
+                    </div>
+                    <input type="range" id="sl_lambda" min="380" max="750" value="500" step="1">
+                    <div class="h-1.5 w-full rounded-full bg-gradient-to-r from-violet-600 via-green-500 to-red-600 opacity-60"></div>
+                </div>
+
+                <!-- Slit Separation -->
+                <div class="control-group">
+                    <div class="flex justify-between mb-1">
+                        <label class="text-sm font-medium text-slate-300">Slit Separation (d)</label>
+                        <span id="lbl_d" class="mono text-xs text-cyan-400 bg-cyan-900/30 px-2 py-0.5 rounded">50 μm</span>
+                    </div>
+                    <input type="range" id="sl_d" min="20" max="200" value="50" step="1">
+                </div>
+
+                <!-- Slit Width -->
+                <div class="control-group">
+                    <div class="flex justify-between mb-1">
+                        <label class="text-sm font-medium text-slate-300">Slit Width (a)</label>
+                        <span id="lbl_a" class="mono text-xs text-cyan-400 bg-cyan-900/30 px-2 py-0.5 rounded">10 μm</span>
+                    </div>
+                    <input type="range" id="sl_a" min="2" max="40" value="10" step="0.5">
+                </div>
+
+                <!-- Screen Distance -->
+                <div class="control-group">
+                    <div class="flex justify-between mb-1">
+                        <label class="text-sm font-medium text-slate-300">Screen Dist. (L)</label>
+                        <span id="lbl_L" class="mono text-xs text-cyan-400 bg-cyan-900/30 px-2 py-0.5 rounded">1.0 m</span>
+                    </div>
+                    <input type="range" id="sl_L" min="0.5" max="3.0" value="1.0" step="0.1">
+                </div>
+
+                <!-- Simulation Settings -->
+                <div class="pt-4 border-t border-slate-700 space-y-4">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase">Simulation Modes</h3>
+                    
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-slate-300">Simulation Speed</span>
+                        <select id="sel_speed" class="bg-slate-800 border border-slate-600 text-xs text-white rounded px-2 py-1 focus:outline-none focus:border-cyan-500">
+                            <option value="1">Slow (Teach)</option>
+                            <option value="5" selected>Normal</option>
+                            <option value="20">Fast (Accumulate)</option>
+                        </select>
+                    </div>
+
+                    <label class="flex items-center gap-3 p-2 rounded hover:bg-slate-800 transition cursor-pointer group">
+                        <input type="checkbox" id="chk_photons" class="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-offset-slate-900" checked>
+                        <div class="text-sm">
+                            <span class="block text-slate-200 font-medium group-hover:text-white">Photon Particles</span>
+                            <span class="block text-xs text-slate-500">Visualize quantum nature</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center gap-3 p-2 rounded hover:bg-slate-800 transition cursor-pointer group">
+                        <input type="checkbox" id="chk_envelope" class="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-offset-slate-900" checked>
+                        <div class="text-sm">
+                            <span class="block text-slate-200 font-medium group-hover:text-white">Diffraction Envelope</span>
+                            <span class="block text-xs text-slate-500">Show single-slit limit</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        </aside>
+
+
+        <!-- CENTER & RIGHT: VISUALIZATION -->
+        <section class="lg:col-span-9 flex flex-col gap-4">
+            
+            <!-- TOP: LAB BENCH VIEW (Schematic) -->
+            <div class="glass-panel relative overflow-hidden h-64 flex flex-col">
+                <div class="absolute top-3 left-4 z-10 bg-slate-900/80 px-2 py-1 rounded border border-slate-700 backdrop-blur-sm">
+                    <span class="text-xs font-bold text-slate-300 uppercase">Fig 1. Optical Bench (Top View)</span>
+                </div>
+                <canvas id="labCanvas" class="w-full h-full cursor-crosshair"></canvas>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-full min-h-[400px]">
+                
+                <!-- BOTTOM LEFT: DETECTOR SCREEN (CCD) -->
+                <div class="glass-panel flex flex-col relative">
+                    <div class="p-3 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/30">
+                        <span class="text-xs font-bold text-slate-300 uppercase">Fig 2. Detector Screen (Accumulation)</span>
+                        <span id="photon_count" class="mono text-[10px] text-emerald-400">Hits: 0</span>
+                    </div>
+                    <div class="flex-grow relative bg-black">
+                        <!-- We use two canvases: one for persistent accumulation, one for instant theory -->
+                        <canvas id="screenCanvas" class="absolute inset-0 w-full h-full"></canvas>
+                        
+                        <!-- Ruler Overlay -->
+                        <div class="absolute bottom-0 w-full h-6 border-t border-slate-800 flex justify-between px-2 text-[10px] text-slate-500 font-mono select-none pointer-events-none">
+                            <span>-50mm</span>
+                            <span>-25</span>
+                            <span>0</span>
+                            <span>+25</span>
+                            <span>+50mm</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTTOM RIGHT: INTENSITY GRAPH -->
+                <div class="glass-panel flex flex-col relative">
+                    <div class="p-3 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/30">
+                        <span class="text-xs font-bold text-slate-300 uppercase">Fig 3. Intensity Profile I(θ)</span>
+                        <div class="flex gap-2 text-[10px]">
+                             <span class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-current" id="legend_theory"></div> Theory</span>
+                             <span class="flex items-center gap-1 text-slate-500"><div class="w-2 h-2 rounded-full border border-current"></div> Envelope</span>
+                        </div>
+                    </div>
+                    <div class="flex-grow bg-slate-900/50 relative">
+                        <canvas id="graphCanvas" class="absolute inset-0 w-full h-full"></canvas>
+                    </div>
+                    <!-- Stats Footer -->
+                    <div class="p-2 border-t border-slate-700/50 bg-slate-800/30 text-[10px] mono text-slate-400 flex justify-between px-4">
+                        <span>Max I: <span class="text-white">100%</span></span>
+                        <span>Fringe Width: <span id="val_beta" class="text-white">--</span></span>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        /**
+         * ENGINEERING OPTICS ENGINE
+         * * Core Physics:
+         * 1. Wave Theory (Fraunhofer): I(y) = I0 * cos²(β) * sinc²(α)
+         * where β = (π d y) / (λ L), α = (π a y) / (λ L)
+         * 2. Particle Theory (Monte Carlo):
+         * - Photons generated at source.
+         * - Inverse Transform Sampling used to determine scattering angle at slits
+         * - Target position y chosen such that probability density P(y) ∝ I(y).
+         */
+
+        // --- System Configuration ---
+        const CONFIG = {
+            screenRangeMM: 100, // Total width of screen in simulated mm (-50 to +50)
+            baseIntensity: 1.0,
+            nSlits: 2
+        };
+
+        // --- State Management ---
+        const state = {
+            lambda: 500e-9, // m
+            d: 50e-6,       // m
+            a: 10e-6,       // m
+            L: 1.0,         // m
+            
+            // Simulation
+            speed: 5,
+            showPhotons: true,
+            showEnvelope: true,
+            running: true,
+            
+            // Internal Physics
+            color: 'rgb(0,255,100)',
+            wavenumber: 0, // k
+            
+            // Monte Carlo
+            photons: [], // Array of active photon objects
+            totalHits: 0,
+            
+            // Caching for Optimization
+            intensityCache: null, // Float32Array of PDF
+            cdfCache: null        // Float32Array of CDF for sampling
+        };
+
+        // --- UI References ---
+        const ui = {
+            inputs: {
+                lambda: document.getElementById('sl_lambda'),
+                d: document.getElementById('sl_d'),
+                a: document.getElementById('sl_a'),
+                L: document.getElementById('sl_L'),
+                speed: document.getElementById('sel_speed'),
+                photons: document.getElementById('chk_photons'),
+                envelope: document.getElementById('chk_envelope')
+            },
+            labels: {
+                lambda: document.getElementById('lbl_lambda'),
+                d: document.getElementById('lbl_d'),
+                a: document.getElementById('lbl_a'),
+                L: document.getElementById('lbl_L'),
+                hits: document.getElementById('photon_count'),
+                beta: document.getElementById('val_beta'),
+                legend: document.getElementById('legend_theory')
+            },
+            canvases: {
+                lab: document.getElementById('labCanvas'),
+                screen: document.getElementById('screenCanvas'),
+                graph: document.getElementById('graphCanvas')
+            }
+        };
+
+        const ctx = {
+            lab: ui.canvases.lab.getContext('2d'),
+            screen: ui.canvases.screen.getContext('2d'),
+            graph: ui.canvases.graph.getContext('2d')
+        };
+
+        // --- Physics Engine ---
+
+        function updatePhysicsParams() {
+            state.wavenumber = (2 * Math.PI) / state.lambda;
+            
+            // Update Color based on Wavelength
+            state.color = wavelengthToRGB(state.lambda * 1e9);
+            ui.labels.legend.style.color = state.color;
+            ui.labels.hits.style.color = state.color;
+
+            // Recalculate Probability Tables for Particle Sim
+            precomputeProbabilityDistribution();
+
+            // Calculate Fringe Width (Young's approximation)
+            // Δy = λL/d
+            const fringeW = (state.lambda * state.L) / state.d;
+            ui.labels.beta.innerText = (fringeW * 1000).toFixed(2) + ' mm';
+        }
+
+        function calculateIntensity(y_meters) {
+            // Small angle approximation is valid for typical lab setup (L >> y)
+            // sin(theta) ≈ tan(theta) = y / L
+            const sinTheta = y_meters / Math.sqrt(y_meters**2 + state.L**2);
+            
+            // Interference Term (Double Slit)
+            // β = (k * d * sinθ) / 2
+            const beta = (state.wavenumber * state.d * sinTheta) / 2;
+            const termInterference = Math.cos(beta) ** 2;
+            
+            // Diffraction Term (Single Slit Envelope)
+            // α = (k * a * sinθ) / 2
+            const alpha = (state.wavenumber * state.a * sinTheta) / 2;
+            const termDiffraction = alpha === 0 ? 1 : (Math.sin(alpha) / alpha) ** 2;
+
+            return {
+                I: termInterference * termDiffraction,
+                Env: termDiffraction
+            };
+        }
+
+        // --- Monte Carlo Sampler ---
+        // Pre-calculates the Cumulative Distribution Function (CDF) of the intensity pattern
+        // allowing us to pick random screen coordinates that statistically match the wave theory.
+        function precomputeProbabilityDistribution() {
+            const steps = 1000;
+            const range = CONFIG.screenRangeMM / 1000; // meters total width
+            state.cdfCache = new Float32Array(steps);
+            
+            let cumulative = 0;
+            const dy = range / steps;
+            
+            for(let i=0; i<steps; i++) {
+                const y = -range/2 + i*dy;
+                const I = calculateIntensity(y).I;
+                cumulative += I;
+                state.cdfCache[i] = cumulative;
+            }
+
+            // Normalize CDF to 0..1
+            const total = state.cdfCache[steps-1];
+            for(let i=0; i<steps; i++) {
+                state.cdfCache[i] /= total;
+            }
+        }
+
+        // Returns a target Y position (meters) based on the interference probability
+        function sampleTargetY() {
+            const r = Math.random();
+            // Binary search the CDF for value r
+            const cdf = state.cdfCache;
+            let low = 0, high = cdf.length - 1;
+            
+            while(low <= high) {
+                const mid = (low + high) >>> 1;
+                if(cdf[mid] < r) low = mid + 1;
+                else high = mid - 1;
+            }
+            
+            // Map index back to position
+            const pct = low / cdf.length;
+            const range = CONFIG.screenRangeMM / 1000;
+            return -range/2 + pct * range; // + jitter?
+        }
+
+        // --- Graphics & Rendering ---
+
+        function resizeCanvases() {
+            Object.values(ui.canvases).forEach(canvas => {
+                const dpr = window.devicePixelRatio || 1;
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                const context = canvas.getContext('2d');
+                context.scale(dpr, dpr);
+                canvas.style.width = `${rect.width}px`;
+                canvas.style.height = `${rect.height}px`;
+            });
+            // Reset screen accumulation on resize
+            clearScreen();
+        }
+
+        function clearScreen() {
+            const context = ui.canvases.screen.getContext('2d');
+            const { width, height } = ui.canvases.screen;
+            
+            // Use save/restore to preserve the scale transform set by resizeCanvases
+            context.save();
+            context.setTransform(1,0,0,1,0,0); // Reset to identity for clearing
+            context.clearRect(0,0, width, height);
+            context.restore(); // Restore the dpr scale
+
+            state.totalHits = 0;
+            state.photons = [];
+            if(ui.labels.hits) ui.labels.hits.innerText = `Hits: 0`;
+        }
+
+        // 1. Draw Lab Bench (Top Down)
+        function drawLab() {
+            const c = ctx.lab; // Fixed shadowing: ctx -> c
+            const w = ui.canvases.lab.width / window.devicePixelRatio;
+            const h = ui.canvases.lab.height / window.devicePixelRatio;
+            
+            c.clearRect(0, 0, w, h);
+
+            const sourceX = 20;
+            const slitX = w / 2;
+            const screenX = w - 20;
+            const cy = h / 2;
+
+            // Draw Optical Axis
+            c.strokeStyle = "#334155";
+            c.setLineDash([5, 5]);
+            c.beginPath();
+            c.moveTo(0, cy);
+            c.lineTo(w, cy);
+            c.stroke();
+            c.setLineDash([]);
+
+            // Draw Source
+            c.fillStyle = state.color;
+            c.shadowBlur = 15;
+            c.shadowColor = state.color;
+            c.beginPath();
+            c.arc(sourceX, cy, 4, 0, Math.PI*2);
+            c.fill();
+            c.shadowBlur = 0;
+
+            // Draw Slit Barrier
+            const barrierH = 100;
+            c.strokeStyle = "#94a3b8";
+            c.lineWidth = 4;
+            c.lineCap = "round";
+            
+            // We visualize d/a exaggerated for visibility
+            // Visual separation: 20px base + d_normalized
+            const visualD = 10 + (state.d / 200e-6) * 40; 
+            const visualA = 4; // Constant visual width for gaps
+            
+            // Top Barrier
+            c.beginPath();
+            c.moveTo(slitX, cy - barrierH);
+            c.lineTo(slitX, cy - visualD/2 - visualA);
+            c.stroke();
+
+            // Middle Barrier
+            c.beginPath();
+            c.moveTo(slitX, cy - visualD/2);
+            c.lineTo(slitX, cy + visualD/2);
+            c.stroke();
+
+            // Bottom Barrier
+            c.beginPath();
+            c.moveTo(slitX, cy + visualD/2 + visualA);
+            c.lineTo(slitX, cy + barrierH);
+            c.stroke();
+
+            // Draw Screen Line
+            c.strokeStyle = "#fff";
+            c.lineWidth = 2;
+            c.beginPath();
+            c.moveTo(screenX, cy - 80);
+            c.lineTo(screenX, cy + 80);
+            c.stroke();
+
+            // Draw Waves (Schematic)
+            // Pre-slit waves
+            c.strokeStyle = state.color;
+            c.lineWidth = 1;
+            c.globalAlpha = 0.3;
+            for(let r=10; r < (slitX - sourceX); r+=15) {
+                c.beginPath();
+                c.arc(sourceX, cy, r, -0.5, 0.5);
+                c.stroke();
+            }
+
+            // Post-slit waves (Interference visualization)
+            // Just draw two sets of arcs from the slits
+            for(let r=10; r < (screenX - slitX); r+=15) {
+                // Top Slit Source
+                c.beginPath();
+                c.arc(slitX, cy - visualD/2 - visualA/2, r, -0.5, 0.5);
+                c.stroke();
+                // Bottom Slit Source
+                c.beginPath();
+                c.arc(slitX, cy + visualD/2 + visualA/2, r, -0.5, 0.5);
+                c.stroke();
+            }
+            c.globalAlpha = 1.0;
+            
+            // Render Moving Photons in Lab View
+            if (state.showPhotons) {
+                renderPhotons(c, sourceX, slitX, screenX, cy, visualD);
+            }
+        }
+
+        // 2. Photon Logic & Rendering
+        function renderPhotons(context, xSrc, xSlit, xScreen, cy, visualD) {
+            // Spawn new photons
+            const spawnRate = state.speed;
+            for(let i=0; i<spawnRate; i++) {
+                if(Math.random() > 0.3) continue;
+                state.photons.push({
+                    x: xSrc,
+                    y: cy,
+                    phase: 0, // 0 = source->slit, 1 = slit->screen
+                    targetY: 0, // Visual target Y on screen relative to center
+                    vx: 2 + Math.random(), // Speed
+                    vy: 0
+                });
+            }
+
+            // Update & Draw
+            context.fillStyle = "#fff";
+            for (let i = state.photons.length - 1; i >= 0; i--) {
+                const p = state.photons[i];
+                
+                // Draw Photon dot
+                context.fillRect(p.x, p.y, 1.5, 1.5);
+
+                // Move
+                p.x += p.vx;
+                p.y += p.vy;
+
+                // Logic: Passing through Slit
+                if (p.phase === 0 && p.x >= xSlit) {
+                    p.phase = 1;
+                    
+                    // 1. Determine Physics Target (Real World Meters)
+                    const realTargetY = sampleTargetY(); 
+                    
+                    // 2. Map Real Target to Lab View Pixels
+                    // Map -50mm..+50mm to -80px..+80px
+                    const visualScale = 80 / (CONFIG.screenRangeMM/1000/2);
+                    p.targetY = realTargetY * visualScale;
+
+                    // 3. Set Velocity Vector
+                    const dx = xScreen - xSlit;
+                    const dy = (cy + p.targetY) - p.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    const speed = 3; // Faster after slit
+                    p.vx = (dx / dist) * speed;
+                    p.vy = (dy / dist) * speed;
+                    
+                    // Visual Hack: Snap Y to one of the two slits visually before leaving
+                    if (Math.random() > 0.5) p.y = cy - visualD/2 - 2; // Top slit
+                    else p.y = cy + visualD/2 + 2; // Bottom slit
+                }
+
+                // Logic: Hitting Screen
+                if (p.x >= xScreen) {
+                    // Register hit on the detector canvas
+                    registerPhotonHit(p.targetY); // Use the calculated target for consistency
+                    state.photons.splice(i, 1);
+                }
+            }
+        }
+
+        // 3. Detector Screen (Accumulation)
+        function registerPhotonHit(visualY) {
+            // VisualY is roughly -80 to 80 pixels relative to center
+            // Need to map this to the Screen Canvas
+            const c = ctx.screen; // Fixed shadowing
+            const w = ui.canvases.screen.width / window.devicePixelRatio;
+            const h = ui.canvases.screen.height / window.devicePixelRatio;
+            const cy = h / 2;
+
+            // Map visual Y offset from Lab View to Screen View width
+            // Lab view: +/- 80px represents full range. Screen view: width represents full range.
+            // But wait, the sampleTargetY generated the coordinate based on screenRangeMM.
+            // Let's re-calculate exact position on screen canvas based on physics.
+            // We stored the physics target implicitly.
+            // Let's reverse map: 
+            // visualY = realTargetY * visualScale
+            // realTargetY = visualY / visualScale
+            const visualScale = 80 / (CONFIG.screenRangeMM/1000/2);
+            const realY = visualY / visualScale;
+
+            // Map realY (-range/2 to +range/2) to Screen Canvas X (0 to w)
+            // Note: The screen canvas is drawn horizontally (simulating the strip), 
+            // but the Lab View has y vertical. We map Lab Y -> Screen X.
+            const range = CONFIG.screenRangeMM / 1000;
+            const screenX = (realY / range + 0.5) * w;
+
+            // Draw scattered dot (Realistic CCD/Photographic plate simulation)
+            c.fillStyle = state.color;
+            c.globalAlpha = 0.8; 
+            
+            // Random Y position on the screen height (simulating 2D detector surface)
+            const randomY = Math.random() * h;
+            
+            // Draw a distinct dot instead of a vertical strip
+            c.fillRect(screenX - 1, randomY, 2, 2);
+            
+            c.globalAlpha = 1.0;
+
+            state.totalHits++;
+            ui.labels.hits.innerText = `Hits: ${state.totalHits}`;
+        }
+
+        // 4. Graph Rendering (Analytical)
+        function drawGraph() {
+            const c = ctx.graph; // Fixed shadowing
+            const w = ui.canvases.graph.width / window.devicePixelRatio;
+            const h = ui.canvases.graph.height / window.devicePixelRatio;
+
+            c.clearRect(0, 0, w, h);
+
+            // Draw Grid
+            c.strokeStyle = "#334155";
+            c.lineWidth = 1;
+            c.beginPath();
+            c.moveTo(0, h-20); c.lineTo(w, h-20); // X Axis
+            c.moveTo(w/2, 0); c.lineTo(w/2, h); // Y Axis
+            c.stroke();
+
+            const rangeMeters = CONFIG.screenRangeMM / 1000;
+
+            // Plot Envelope (Diffraction)
+            if (state.showEnvelope) {
+                c.beginPath();
+                c.strokeStyle = "#64748b";
+                c.setLineDash([4, 4]);
+                for(let x=0; x<=w; x+=2) {
+                    const pct = x/w;
+                    const yPos = -rangeMeters/2 + pct*rangeMeters;
+                    const val = calculateIntensity(yPos).Env;
+                    const plotY = (h-20) - (val * (h-40));
+                    if(x===0) c.moveTo(x, plotY);
+                    else c.lineTo(x, plotY);
+                }
+                c.stroke();
+                c.setLineDash([]);
+            }
+
+            // Plot Net Intensity
+            c.beginPath();
+            c.strokeStyle = state.color;
+            c.lineWidth = 2;
+            c.shadowColor = state.color;
+            c.shadowBlur = 10;
+            
+            for(let x=0; x<=w; x++) {
+                const pct = x/w;
+                const yPos = -rangeMeters/2 + pct*rangeMeters;
+                const val = calculateIntensity(yPos).I;
+                
+                const plotY = (h-20) - (val * (h-40));
+                
+                if(x===0) c.moveTo(x, plotY);
+                else c.lineTo(x, plotY);
+            }
+            c.stroke();
+            c.shadowBlur = 0;
+        }
+
+        // --- Core Loop ---
+
+        function loop() {
+            if(!state.running) return;
+            drawLab();
+            // Screen is accumulative, don't clear
+            drawGraph();
+            requestAnimationFrame(loop);
+        }
+
+        // --- Helpers ---
+        function wavelengthToRGB(wavelength) {
+            let r, g, b;
+            if (wavelength >= 380 && wavelength < 440) { r = -1 * (wavelength - 440) / (440 - 380); g = 0; b = 1; }
+            else if (wavelength >= 440 && wavelength < 490) { r = 0; g = (wavelength - 440) / (490 - 440); b = 1; }
+            else if (wavelength >= 490 && wavelength < 510) { r = 0; g = 1; b = -1 * (wavelength - 510) / (510 - 490); }
+            else if (wavelength >= 510 && wavelength < 580) { r = (wavelength - 510) / (580 - 510); g = 1; b = 0; }
+            else if (wavelength >= 580 && wavelength < 645) { r = 1; g = -1 * (wavelength - 645) / (645 - 580); b = 0; }
+            else if (wavelength >= 645 && wavelength <= 780) { r = 1; g = 0; b = 0; }
+            else { r = 0; g = 0; b = 0; }
+            return `rgb(${Math.floor(r * 255)}, ${Math.floor(g * 255)}, ${Math.floor(b * 255)})`;
+        }
+
+        // --- Exposure / Export API ---
+        const sim = {
+            resetPhotons: () => {
+                clearScreen();
+            },
+            exportReport: () => {
+                // Combine canvases into one image
+                const exportCanvas = document.createElement('canvas');
+                exportCanvas.width = 800;
+                exportCanvas.height = 600;
+                const eCtx = exportCanvas.getContext('2d');
+                
+                // Fill BG
+                eCtx.fillStyle = "#0f172a";
+                eCtx.fillRect(0,0,800,600);
+                
+                // Header
+                eCtx.fillStyle = "#fff";
+                eCtx.font = "bold 20px sans-serif";
+                eCtx.fillText("Double Slit Experiment Report", 20, 40);
+                eCtx.font = "14px monospace";
+                eCtx.fillStyle = "#94a3b8";
+                eCtx.fillText(`λ=${state.lambda*1e9}nm d=${state.d*1e6}μm a=${state.a*1e6}μm L=${state.L}m`, 20, 65);
+
+                // Draw Graph
+                eCtx.drawImage(ui.canvases.graph, 20, 100, 760, 200);
+                
+                // Draw Screen Pattern
+                eCtx.drawImage(ui.canvases.screen, 20, 320, 760, 100);
+                eCtx.strokeStyle = "#fff";
+                eCtx.strokeRect(20, 320, 760, 100);
+
+                // Download
+                const link = document.createElement('a');
+                link.download = 'experiment_data.png';
+                link.href = exportCanvas.toDataURL();
+                link.click();
+            }
+        };
+
+        // --- Initialization ---
+        function init() {
+            // Bind Inputs
+            ui.inputs.lambda.addEventListener('input', (e) => {
+                state.lambda = e.target.value * 1e-9;
+                ui.labels.lambda.innerText = e.target.value + ' nm';
+                updatePhysicsParams();
+                sim.resetPhotons();
+            });
+            ui.inputs.d.addEventListener('input', (e) => {
+                state.d = e.target.value * 1e-6;
+                ui.labels.d.innerText = e.target.value + ' μm';
+                updatePhysicsParams();
+                sim.resetPhotons();
+            });
+            ui.inputs.a.addEventListener('input', (e) => {
+                state.a = e.target.value * 1e-6;
+                ui.labels.a.innerText = e.target.value + ' μm';
+                updatePhysicsParams();
+                sim.resetPhotons();
+            });
+            ui.inputs.L.addEventListener('input', (e) => {
+                state.L = parseFloat(e.target.value);
+                ui.labels.L.innerText = state.L.toFixed(1) + ' m';
+                updatePhysicsParams();
+            });
+            
+            ui.inputs.speed.addEventListener('change', (e) => state.speed = parseInt(e.target.value));
+            ui.inputs.photons.addEventListener('change', (e) => {
+                state.showPhotons = e.target.checked;
+                if(!state.showPhotons) sim.resetPhotons();
+            });
+            ui.inputs.envelope.addEventListener('change', (e) => state.showEnvelope = e.target.checked);
+
+            window.addEventListener('resize', resizeCanvases);
+
+            // Start
+            updatePhysicsParams();
+            resizeCanvases();
+            loop();
+        }
+
+        init();
+
+    </script>
+</body>
+</html>
